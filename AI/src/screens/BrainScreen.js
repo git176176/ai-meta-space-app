@@ -1,7 +1,7 @@
 /**
  * 智囊 - 任务列表
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { brainAPI } from '../api/apiService';
 
@@ -24,7 +25,7 @@ const TASK_TYPES = [
 
 const BrainScreen = ({ navigation }) => {
   const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadTasks();
@@ -33,25 +34,39 @@ const BrainScreen = ({ navigation }) => {
   const loadTasks = async () => {
     try {
       const data = await brainAPI.listTasks();
-      setTasks(data);
+      setTasks(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('Failed to load tasks:', e);
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadTasks();
+    setRefreshing(false);
+  }, []);
+
   const createTask = async (type) => {
-    setLoading(true);
     try {
       const task = await brainAPI.createTask({
         task_type: type.id,
         title: type.name,
-        description: type.desc,
+        query: '',
       });
-      navigation.navigate('BrainChat', { taskId: task.id, title: type.name });
+      navigation.navigate('BrainChat', { 
+        taskId: task.id, 
+        title: type.name,
+      });
     } catch (e) {
       Alert.alert('错误', '创建任务失败');
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'done': return '已完成';
+      case 'doing': return '进行中';
+      default: return '待处理';
     }
   };
 
@@ -67,8 +82,7 @@ const BrainScreen = ({ navigation }) => {
           <TouchableOpacity
             key={type.id}
             style={styles.card}
-            onPress={() => createTask(type)}
-            disabled={loading}>
+            onPress={() => createTask(type)}>
             <Text style={styles.cardIcon}>{type.icon}</Text>
             <Text style={styles.cardName}>{type.name}</Text>
             <Text style={styles.cardDesc}>{type.desc}</Text>
@@ -76,10 +90,14 @@ const BrainScreen = ({ navigation }) => {
         ))}
       </View>
 
-      <Text style={styles.sectionTitle}>我的任务</Text>
+      <Text style={styles.sectionTitle}>最近任务</Text>
+
       <FlatList
-        data={tasks}
+        data={tasks.slice(0, 10)}
         keyExtractor={(item) => String(item.id)}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#9b90ff" />
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.taskItem}
@@ -91,11 +109,16 @@ const BrainScreen = ({ navigation }) => {
               <Text style={styles.taskTitle}>{item.title}</Text>
               <Text style={styles.taskType}>{item.task_type}</Text>
             </View>
-            <Text style={styles.taskStatus}>{item.status}</Text>
+            <Text style={[
+              styles.taskStatus,
+              item.status === 'done' && styles.statusDone
+            ]}>
+              {getStatusText(item.status)}
+            </Text>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <Text style={styles.empty}>暂无任务</Text>
+          <Text style={styles.empty}>暂无任务，点击上方卡片创建</Text>
         }
       />
     </SafeAreaView>
@@ -113,11 +136,20 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 16, fontWeight: '600', color: '#e6e4f3' },
   cardDesc: { fontSize: 12, color: '#757481', marginTop: 4 },
   sectionTitle: { fontSize: 14, color: '#abaab8', paddingHorizontal: 20, marginTop: 16, marginBottom: 8 },
-  taskItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#191921' },
+  taskItem: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    paddingVertical: 14, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#191921' 
+  },
   taskInfo: { flex: 1 },
   taskTitle: { fontSize: 16, color: '#e6e4f3' },
   taskType: { fontSize: 12, color: '#757481', marginTop: 2 },
   taskStatus: { fontSize: 12, color: '#9b90ff' },
+  statusDone: { color: '#4ade80' },
   empty: { textAlign: 'center', color: '#757481', marginTop: 20 },
 });
 
