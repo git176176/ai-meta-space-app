@@ -1,0 +1,40 @@
+name: Build Android APK (EAS)
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: AI/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./AI
+        run: npm ci
+
+      - name: Install EAS CLI
+        working-directory: ./AI
+        run: npm install eas-cli
+
+      - name: Build Android (EAS)
+        working-directory: ./AI
+        env:
+          EAS_AUTH_TOKEN: ${{ secrets.EAS_AUTH_TOKEN }}
+        run: npx eas build --platform android --non-interactive --local --profile preview
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-meta-space-apk
+          path: AI/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 5
