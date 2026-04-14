@@ -41,6 +41,12 @@ const ProfileScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.menu}>
+        <TouchableOpacity 
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('Settings')}>
+          <Text style={styles.menuText}>设置</Text>
+          <Text style={styles.menuArrow}>›</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.menuItem}>
           <Text style={styles.menuText}>意见反馈</Text>
           <Text style={styles.menuArrow}>›</Text>

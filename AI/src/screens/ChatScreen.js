@@ -15,7 +15,7 @@ import {
 import { chatAPI } from '../api/apiService';
 
 const ChatScreen = ({ route }) => {
-  const { sessionId } = route.params;
+  const { sessionId, title } = route.params;
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ const ChatScreen = ({ route }) => {
 
   useEffect(() => {
     loadChat();
-  }, []);
+  }, [sessionId]);
 
   const loadChat = async () => {
     try {
@@ -42,11 +42,13 @@ const ChatScreen = ({ route }) => {
     setLoading(true);
 
     // 添加用户消息
-    setMessages(prev => [...prev, {
+    const userMsg = {
       id: Date.now(),
       role: 'user',
       content: text,
-    }]);
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, userMsg]);
 
     try {
       const res = await chatAPI.sendMessage(sessionId, text);
@@ -55,29 +57,56 @@ const ChatScreen = ({ route }) => {
       console.error('Failed to send message:', e);
       // 添加错误消息
       setMessages(prev => [...prev, {
-        id: Date.now(),
+        id: Date.now() + 1,
         role: 'assistant',
         content: '发送失败，请重试',
+        created_at: new Date().toISOString(),
       }]);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderMessage = ({ item }) => {
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const date = new Date(timeStr);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    
+    if (isToday) {
+      return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const renderMessage = ({ item, index }) => {
     const isUser = item.role === 'user';
+    const showTime = index === 0 || 
+      (messages[index - 1] && 
+       new Date(item.created_at) - new Date(messages[index - 1].created_at) > 5 * 60 * 1000);
+
     return (
-      <View style={[
-        styles.messageBubble,
-        isUser ? styles.userBubble : styles.aiBubble
-      ]}>
-        <Text style={[
-          styles.messageText,
-          isUser ? styles.userText : styles.aiText
+      <>
+        {showTime && (
+          <Text style={styles.timeTag}>{formatTime(item.created_at)}</Text>
+        )}
+        <View style={[
+          styles.messageBubble,
+          isUser ? styles.userBubble : styles.aiBubble
         ]}>
-          {item.content}
-        </Text>
-      </View>
+          {!isUser && (
+            <View style={styles.aiAvatar}>
+              <Text style={styles.aiAvatarText}>🤖</Text>
+            </View>
+          )}
+          <Text style={[
+            styles.messageText,
+            isUser ? styles.userText : styles.aiText
+          ]}>
+            {item.content}
+          </Text>
+        </View>
+      </>
     );
   };
 
@@ -94,7 +123,11 @@ const ChatScreen = ({ route }) => {
         contentContainerStyle={styles.messageList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
         ListEmptyComponent={
-          <Text style={styles.empty}>开始和 AI 对话吧</Text>
+          <View style={styles.empty}>
+            <Text style={styles.emptyIcon}>💬</Text>
+            <Text style={styles.emptyText}>开始和 AI 对话吧</Text>
+            <Text style={styles.emptySub}>发送消息获取智能回复</Text>
+          </View>
         }
       />
 
@@ -109,11 +142,14 @@ const ChatScreen = ({ route }) => {
           maxLength={2000}
         />
         <TouchableOpacity 
-          style={[styles.sendButton, loading && styles.sendButtonDisabled]}
+          style={[
+            styles.sendButton, 
+            (!inputText.trim() || loading) && styles.sendButtonDisabled
+          ]}
           onPress={sendMessage}
-          disabled={loading}>
+          disabled={!inputText.trim() || loading}>
           <Text style={styles.sendText}>
-            {loading ? '...' : '发送'}
+            {loading ? '...' : '➤'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -122,19 +158,21 @@ const ChatScreen = ({ route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0d0e13',
-  },
-  messageList: {
-    padding: 16,
-    flexGrow: 1,
+  container: { flex: 1, backgroundColor: '#0d0e13' },
+  messageList: { padding: 16, flexGrow: 1 },
+  timeTag: { 
+    textAlign: 'center', 
+    color: '#757481', 
+    fontSize: 12, 
+    marginVertical: 12 
   },
   messageBubble: {
     maxWidth: '80%',
     padding: 14,
     borderRadius: 16,
-    marginBottom: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   userBubble: {
     alignSelf: 'flex-end',
@@ -146,9 +184,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#191921',
     borderBottomLeftRadius: 4,
   },
+  aiAvatar: {
+    marginRight: 8,
+  },
+  aiAvatarText: {
+    fontSize: 20,
+  },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
+    flex: 1,
   },
   userText: {
     color: '#fff',
@@ -157,9 +202,23 @@ const styles = StyleSheet.create({
     color: '#e6e4f3',
   },
   empty: {
-    textAlign: 'center',
-    color: '#757481',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 100,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#e6e4f3',
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontSize: 14,
+    color: '#757481',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -181,8 +240,10 @@ const styles = StyleSheet.create({
   sendButton: {
     backgroundColor: '#9b90ff',
     borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginLeft: 8,
   },
   sendButtonDisabled: {
@@ -190,8 +251,7 @@ const styles = StyleSheet.create({
   },
   sendText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 20,
   },
 });
 

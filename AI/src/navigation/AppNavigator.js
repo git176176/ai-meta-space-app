@@ -16,6 +16,7 @@ import ChatScreen from '../screens/ChatScreen';
 import BrainScreen from '../screens/BrainScreen';
 import BrainChatScreen from '../screens/BrainChatScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -24,7 +25,7 @@ const Tab = createBottomTabNavigator();
 const TabIcon = ({ label, focused }) => (
   <View style={styles.tabIcon}>
     <Text style={[styles.tabIconText, focused && styles.tabIconFocused]}>
-      {label === '首页' ? '🏠' : label === '智囊' ? '🧠' : '👤'}
+      {label === '首页' ? '🏠' : label === '智囊' ? '🧠' : label === '我的' ? '👤' : '⚙️'}
     </Text>
   </View>
 );
@@ -76,6 +77,7 @@ const MainStack = () => (
     <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
     <Stack.Screen name="Chat" component={ChatScreen} options={{ title: '对话' }} />
     <Stack.Screen name="BrainChat" component={BrainChatScreen} options={{ title: '智囊任务' }} />
+    <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: '设置' }} />
   </Stack.Navigator>
 );
 
