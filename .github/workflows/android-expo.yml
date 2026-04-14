@@ -1,0 +1,40 @@
+name: Build Android APK (Expo)
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup EAS
+        run: npm install -g eas-cli
+
+      - name: Install dependencies
+        run: |
+          cd AI
+          npm install
+          npx expo install --fix
+          
+      - name: Build Android (local)
+        run: |
+          cd AI
+          npx expo run:android --no-install --variant release --local
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+      - name: Upload APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-meta-space-apk
+          path: AI/android/app/build/outputs/apk/release/app-release.apk
