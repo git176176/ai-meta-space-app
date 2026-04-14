@@ -1,0 +1,45 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - uses: android-actions/setup-android@v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: AI/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./AI
+        run: npm ci
+
+      - name: Bundle JS
+        working-directory: ./AI
+        run: npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
+
+      - name: Build debug APK
+        working-directory: ./AI/android
+        run: ./gradlew assembleDebug --no-daemon -x lint
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-meta-space-apk
+          path: AI/android/app/build/outputs/apk/debug/app-debug.apk
