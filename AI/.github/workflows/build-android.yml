@@ -1,0 +1,51 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Install Dependencies
+        run: |
+          cd AI
+          npm install
+
+      - name: Build Debug APK
+        run: |
+          cd AI/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-meta-space-apk
+          path: AI/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v1
+        with:
+          artifacts: AI/android/app/build/outputs/apk/debug/app-debug.apk
+          asset_path: AI/android/app/build/outputs/apk/debug/app-debug.apk
+          asset_name: AI MetaSpace.apk
+          body: "AI Meta Space Android APK"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
